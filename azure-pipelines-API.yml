@@ -1,0 +1,62 @@
+# Gradle - Comment test
+# Build your Java project and run tests with Gradle using a Gradle wrapper script.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/java
+
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  - group : TESTING
+
+steps:
+  -script: 
+      echo "env $(ENV)"
+   displayName: 'show variavles from gp'
+- task: Gradle@2
+  inputs:
+    gradleWrapperFile: 'gradlew'
+    javaHomeOption: 'JDKVersion'
+    gradleOptions: '-Xmx12288m'
+    publishJUnitResults: false
+    testResultsFiles: '**/TEST-*.xml'
+    tasks: 'clean toolsApiTests --rerun-tasks --stacktrace --continue --info --debug'
+
+- task: PublishTestResults@2
+  inputs:
+    testResultsFormat: 'JUnit'
+    testResultsFiles: '**/TEST-*.xml'
+    mergeTestResults: true
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    ArtifactName: 'Extent-Reports'
+    PathToPublish: './target/Extent-Reports/'
+
+- task: EmailReport@1
+  inputs:
+    sendMailConditionConfig: 'Always'
+    subject: '[{environmentStatus}] {passPercentage} tests passed in $(Release.EnvironmentName) stage for $(Build.BuildNumber)'
+    toAddress: 'saurav.sharma@infostride.com'
+    includeInCcSectionStr: '1'
+    ccAddress: 'ankit.kumar@infostride.com'
+    defaultDomain: 'microsoft.com'
+    groupTestResultsBy: 'run'
+    includeCommits: true
+    maxTestFailuresToShow: '15'
+    includeOthersInTotal: true
+    usePreviousEnvironment: false
+    smtpConnectionEndpoint: 'INFOSMTP'
+
+- task: PowerShell@2
+  inputs:
+    targetType: 'inline'
+    script: |
+      Send-MailMessage -From 'ankitkumar5184@outlook.com' 
+      -To 'ankit.kumar@infostride.com', 'gulshan.kumar@infostride.com' 
+      -Subject 'Sending the Attachment' 
+      -Body "Forgot to send the attachment. Sending now." ./target/Extent-Reports/
+      -Priority High 
+      -DeliveryNotificationOption OnSuccess,OnFailure 
+      -SmtpServer 'smtp.office365.com'
